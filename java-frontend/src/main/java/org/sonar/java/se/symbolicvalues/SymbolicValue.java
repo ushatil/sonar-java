@@ -21,7 +21,6 @@ package org.sonar.java.se.symbolicvalues;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-
 import org.sonar.java.se.ExplodedGraphWalker;
 import org.sonar.java.se.ProgramState;
 import org.sonar.java.se.constraint.BooleanConstraint;
@@ -67,6 +66,10 @@ public class SymbolicValue {
 
   public SymbolicValue(int id) {
     this.id = id;
+  }
+
+  public SymbolicValue converted(int id, SymbolicValueAdapter adapter) {
+    return new SymbolicValue(id);
   }
 
   public int id() {
@@ -196,6 +199,13 @@ public class SymbolicValue {
     }
 
     @Override
+    public NotSymbolicValue converted(int id, SymbolicValueAdapter adapter) {
+      NotSymbolicValue converted = new NotSymbolicValue(id);
+      converted.operand = adapter.convert(operand);
+      return converted;
+    }
+
+    @Override
     public List<ProgramState> setConstraint(ProgramState programState, BooleanConstraint booleanConstraint) {
       return operand.setConstraint(programState, booleanConstraint.inverse());
     }
@@ -209,6 +219,13 @@ public class SymbolicValue {
   public static class InstanceOfSymbolicValue extends UnarySymbolicValue {
     public InstanceOfSymbolicValue(int id) {
       super(id);
+    }
+
+    @Override
+    public InstanceOfSymbolicValue converted(int id, SymbolicValueAdapter adapter) {
+      InstanceOfSymbolicValue converted = new InstanceOfSymbolicValue(id);
+      converted.operand = adapter.convert(operand);
+      return converted;
     }
 
     @Override
@@ -258,6 +275,14 @@ public class SymbolicValue {
     }
 
     @Override
+    public AndSymbolicValue converted(int id, SymbolicValueAdapter adapter) {
+      AndSymbolicValue converted = new AndSymbolicValue(id);
+      converted.leftOp = adapter.convert(leftOp);
+      converted.rightOp = adapter.convert(rightOp);
+      return converted;
+    }
+
+    @Override
     public List<ProgramState> setConstraint(ProgramState programState, BooleanConstraint booleanConstraint) {
       final List<ProgramState> states = new ArrayList<>();
       if (booleanConstraint.isFalse()) {
@@ -287,6 +312,14 @@ public class SymbolicValue {
     }
 
     @Override
+    public OrSymbolicValue converted(int id, SymbolicValueAdapter adapter) {
+      OrSymbolicValue converted = new OrSymbolicValue(id);
+      converted.leftOp = adapter.convert(leftOp);
+      converted.rightOp = adapter.convert(rightOp);
+      return converted;
+    }
+
+    @Override
     public List<ProgramState> setConstraint(ProgramState programState, BooleanConstraint booleanConstraint) {
       List<ProgramState> states = new ArrayList<>();
       if (booleanConstraint.isTrue()) {
@@ -313,6 +346,14 @@ public class SymbolicValue {
 
     public XorSymbolicValue(int id) {
       super(id);
+    }
+
+    @Override
+    public XorSymbolicValue converted(int id, SymbolicValueAdapter adapter) {
+      XorSymbolicValue converted = new XorSymbolicValue(id);
+      converted.leftOp = adapter.convert(leftOp);
+      converted.rightOp = adapter.convert(rightOp);
+      return converted;
     }
 
     @Override

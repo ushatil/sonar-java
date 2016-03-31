@@ -20,6 +20,7 @@
 package org.sonar.java.se.checks;
 
 import com.google.common.collect.ImmutableList;
+
 import org.sonar.check.Rule;
 import org.sonar.java.se.CheckerContext;
 import org.sonar.java.se.ProgramState;
@@ -28,6 +29,7 @@ import org.sonar.java.se.constraint.BooleanConstraint;
 import org.sonar.java.se.constraint.ConstraintManager;
 import org.sonar.java.se.constraint.ObjectConstraint;
 import org.sonar.java.se.symbolicvalues.SymbolicValue;
+import org.sonar.java.se.symbolicvalues.SymbolicValueAdapter;
 import org.sonar.plugins.java.api.tree.ExpressionTree;
 import org.sonar.plugins.java.api.tree.IdentifierTree;
 import org.sonar.plugins.java.api.tree.MemberSelectExpressionTree;
@@ -57,6 +59,11 @@ public class LocksNotUnlockedCheck extends SECheck {
       super(id);
       this.operand = operand;
       this.syntaxNode = syntaxNode;
+    }
+
+    @Override
+    public TryLockSymbolicValue converted(int id, SymbolicValueAdapter adapter) {
+      return new TryLockSymbolicValue(id, adapter.convert(operand), syntaxNode);
     }
 
     @Override

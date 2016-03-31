@@ -84,6 +84,11 @@ public class ObjectConstraint implements Constraint {
     return syntaxNode;
   }
 
+  // see RelationalSymbolicValue#exitMethodInto
+  public ObjectConstraint atSyntaxNode(Tree newSyntaxNode) {
+    return new ObjectConstraint(isNull, disposable, newSyntaxNode, status);
+  }
+
   @Override
   public String toString() {
     final StringBuilder buffer = new StringBuilder();

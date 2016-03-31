@@ -22,6 +22,7 @@ package org.sonar.java.se;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+
 import org.sonar.java.collections.PCollections;
 import org.sonar.java.collections.PMap;
 import org.sonar.java.se.constraint.BooleanConstraint;
@@ -35,7 +36,9 @@ import org.sonar.plugins.java.api.tree.VariableTree;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
+
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
@@ -110,7 +113,7 @@ public class ProgramState {
     this.stack = ps.stack;
   }
 
-  ProgramState stackValue(SymbolicValue sv) {
+  public ProgramState stackValue(SymbolicValue sv) {
     Deque<SymbolicValue> newStack = new LinkedList<>(stack);
     newStack.push(sv);
     return new ProgramState(this, newStack);
@@ -351,6 +354,12 @@ public class ProgramState {
         }
       }
     });
+    return result;
+  }
+
+  public Collection<SymbolicValue> getConstrainedValues() {
+    final List<SymbolicValue> result = new ArrayList<>();
+    constraints.forEach((value, valueConstraint) -> result.add(value));
     return result;
   }
 

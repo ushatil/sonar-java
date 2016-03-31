@@ -39,7 +39,7 @@ public static class Class extends SuperClass {
     Object field;
 
     Object method() {
-      return null;
+      return field;
     }
   }
 
@@ -1262,12 +1262,13 @@ class SuperClass {
     }
   }
   class Env {
+    private boolean hiddenValue;
     boolean gzip() {
-      return true;
+      return hiddenValue;
     }
 
     boolean prodMode() {
-      return true;
+      return hiddenValue;
     }
   }
 
@@ -1312,7 +1313,7 @@ class SuperClass {
 
   @CheckForNull
   private Object nullableMethod() {
-    return null;
+    return request;
   }
 
   static void fromEntryArray(boolean foo) {
