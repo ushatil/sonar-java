@@ -512,9 +512,7 @@ public class ExplodedGraphWalker extends BaseTreeVisitor {
       Type returnType = mit.symbolType();
       if (!returnType.isVoid() && !returnType.isUnknown()) {
         if (resultingStates.isEmpty()) {
-          for (String message : noYieldIssues(mit, invocationYields)) {
-            checkerDispatcher.reportIssue(mit, alwaysTrueOrFalseChecker, message);
-          }
+          reportNoYieldIssues(mit, invocationYields);
         }
         return resultingStates;
       }
@@ -523,7 +521,7 @@ public class ExplodedGraphWalker extends BaseTreeVisitor {
     return resultingStates;
   }
 
-  private List<String> noYieldIssues(MethodInvocationTree mit, List<MethodInvocationYield> invocationYields) {
+  private void reportNoYieldIssues(MethodInvocationTree mit, List<MethodInvocationYield> invocationYields) {
     List<String> messages = new ArrayList<>();
     for (MethodInvocationYield yield : invocationYields) {
       messages.addAll(yield.noYieldIssues(checkerDispatcher, mit));
@@ -531,7 +529,9 @@ public class ExplodedGraphWalker extends BaseTreeVisitor {
     if (messages.isEmpty()) {
       messages.add("Incompatible arguments in method call");
     }
-    return messages;
+    for (String message : messages) {
+      checkerDispatcher.reportIssue(mit, alwaysTrueOrFalseChecker, message);
+    }
   }
 
   private List<ProgramState> resultStates(List<MethodInvocationYield> invocationYields, MethodInvocationTree mit, ProgramState state) {
@@ -549,8 +549,7 @@ public class ExplodedGraphWalker extends BaseTreeVisitor {
     List<SymbolicValue> parameterValues = new ArrayList<>(unstack.values);
     parameterValues.remove(0);
     Collections.reverse(parameterValues);
-    List<MethodInvocationYield> invocationYields = behavior.invocationYields(parameterValues, resultValue, constraintManager);
-    return invocationYields;
+    return behavior.invocationYields(parameterValues, resultValue, constraintManager, methodBehavior);
   }
 
   private ProgramState defaultResultState(MethodInvocationTree mit, ProgramState state, final SymbolicValue resultValue) {
