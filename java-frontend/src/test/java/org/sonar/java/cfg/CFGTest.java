@@ -22,6 +22,7 @@ package org.sonar.java.cfg;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.sonar.sslr.api.typed.ActionParser;
+
 import org.junit.Test;
 import org.sonar.java.ast.parser.JavaParser;
 import org.sonar.java.cfg.CFG.Block;
@@ -508,6 +509,29 @@ public class CFGTest {
   }
 
   @Test
+  public void assignmentMethod() {
+    final CFG cfg = buildCFG("void fun() {Object a; a = getObject();}");
+    final CFGChecker cfgChecker = checker(
+      block(
+        element(Tree.Kind.VARIABLE, "a"),
+        element(Tree.Kind.IDENTIFIER, "getObject"),
+        element(Tree.Kind.METHOD_INVOCATION),
+        element(Tree.Kind.ASSIGNMENT)).successors(0));
+    cfgChecker.check(cfg);
+  }
+
+  @Test
+  public void variableAssignmentMethod() {
+    final CFG cfg = buildCFG("void fun() {Object a = getObject();}");
+    final CFGChecker cfgChecker = checker(
+      block(
+        element(Tree.Kind.IDENTIFIER, "getObject"),
+        element(Tree.Kind.METHOD_INVOCATION),
+        element(Tree.Kind.VARIABLE, "a")).successors(0));
+    cfgChecker.check(cfg);
+  }
+
+  @Test
   public void three_branch_if() {
     final CFG cfg = buildCFG("void fun() { foo ? a : b; a.toString();}");
     final CFGChecker cfgChecker = checker(
@@ -820,7 +844,6 @@ public class CFGTest {
             element(Kind.METHOD_INVOCATION)).terminator(Kind.IF_STATEMENT).ifTrue(2).ifFalse(1),
         block(
             element(Kind.IDENTIFIER, "n"),
-            element(Kind.IDENTIFIER, "relativePath"),
             element(Kind.ASSIGNMENT)).successors(1),
         block(element(Kind.VARIABLE, "n")).terminator(Kind.FOR_EACH_STATEMENT).ifFalse(0).ifTrue(3)
         );
@@ -1331,7 +1354,6 @@ public class CFGTest {
         element(Tree.Kind.METHOD_INVOCATION),
         element(Tree.Kind.IDENTIFIER, "a"),
         element(Tree.Kind.TYPE_CAST),
-        element(Tree.Kind.IDENTIFIER, "a"),
         element(Tree.Kind.PLUS_ASSIGNMENT)
         ).successors(0));
     cfgChecker.check(cfg);

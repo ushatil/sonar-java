@@ -625,13 +625,17 @@ public class ExplodedGraphWalker extends BaseTreeVisitor {
   private void executeLogicalAssignement(AssignmentExpressionTree tree) {
     ExpressionTree variable = tree.variable();
     if (variable.is(Tree.Kind.IDENTIFIER)) {
-      ProgramState.Pop unstack = programState.unstackValue(2);
-      SymbolicValue assignedTo = unstack.values.get(0);
-      SymbolicValue value = unstack.values.get(1);
+      ProgramState.Pop unstack = programState.unstackValue(1);
+      SymbolicValue value = unstack.values.get(0);
       programState = unstack.state;
+      Symbol variableSymbol = ((IdentifierTree) variable).symbol();
+      SymbolicValue assignedTo = programState.getValue(variableSymbol);
+      if (assignedTo == null) {
+        assignedTo = constraintManager.createSymbolicValue(variable);
+      }
       SymbolicValue symbolicValue = constraintManager.createSymbolicValue(tree);
       symbolicValue.computedFrom(ImmutableList.of(assignedTo, value));
-      programState = programState.put(((IdentifierTree) variable).symbol(), symbolicValue);
+      programState = programState.put(variableSymbol, symbolicValue);
       programState = programState.stackValue(symbolicValue);
     }
   }
