@@ -187,6 +187,14 @@ public class ProgramState {
     return this;
   }
 
+  public ProgramState removeConstraint(SymbolicValue symbolicValue) {
+    PMap<SymbolicValue, Constraint> newConstraints = constraints.remove(symbolicValue);
+    if (newConstraints != constraints) {
+      return new ProgramState(this, newConstraints);
+    }
+    return this;
+  }
+
   ProgramState put(Symbol symbol, SymbolicValue value) {
     if (symbol.isUnknown() || isVolatileField(symbol)) {
       return this;
