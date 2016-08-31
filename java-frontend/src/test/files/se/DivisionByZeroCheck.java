@@ -278,7 +278,7 @@ class A {
       myLong = 0L;
     }
     if (myLong != null) {
-      int x = 42 / myLong; // Noncompliant
+      int x = 42 / myLong; // FN - Noncompliant
     }
   }
 

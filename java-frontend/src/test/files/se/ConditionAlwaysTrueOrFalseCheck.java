@@ -1670,7 +1670,7 @@ class BooleanWrapper {
   void test2(Boolean condition) {
     if (Boolean.TRUE.equals(condition)) {
     } else if (condition == null) {
-    } else if (Boolean.FALSE.equals(condition)) { // Noncompliant
+    } else if (Boolean.FALSE.equals(condition)) { // FN - Noncompliant
     }
   }
 
