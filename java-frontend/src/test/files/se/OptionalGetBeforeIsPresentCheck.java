@@ -1,7 +1,7 @@
 import java.util.Optional;
 
 class A {
-  Optional<String> getOptional() { return null; }
+  Optional<String> getOptional() { return Optional.empty(); }
   Optional<String> optional;
 
   A() {
