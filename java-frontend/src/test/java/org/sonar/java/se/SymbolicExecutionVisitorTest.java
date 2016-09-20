@@ -22,6 +22,7 @@ package org.sonar.java.se;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.sonar.sslr.api.typed.ActionParser;
+
 import org.junit.Test;
 import org.sonar.java.ast.parser.JavaParser;
 import org.sonar.java.resolve.SemanticModel;
