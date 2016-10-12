@@ -121,8 +121,10 @@ public class SymbolicExecutionVisitorTest {
   public void clear_stack_when_taking_exceptional_path_from_method_invocation() throws Exception {
     SymbolicExecutionVisitor sev = createSymbolicExecutionVisitor("src/test/files/se/CleanStackWhenRaisingException.java");
     List<MethodYield> yields = sev.behaviorCache.values().iterator().next().yields();
-    assertThat(yields).hasSize(2);
+    assertThat(yields).hasSize(3);
     yields.stream().map(y -> y.resultConstraint).filter(Objects::nonNull).forEach(c -> assertThat(c.isNull()).isFalse());
+    assertThat(yields.stream().filter(y -> !y.exception).count()).isEqualTo(2);
+    assertThat(yields.stream().filter(y -> y.exception).count()).isEqualTo(1);
   }
 
   private static SymbolicExecutionVisitor createSymbolicExecutionVisitor(String fileName) {
