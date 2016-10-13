@@ -26,6 +26,7 @@ import org.sonar.check.Rule;
 import org.sonar.java.se.DebuggingVisitor;
 import org.sonar.java.se.MethodBehavior;
 import org.sonar.java.se.MethodYield;
+import org.sonar.java.se.constraint.Constraint;
 import org.sonar.plugins.java.api.IssuableSubscriptionVisitor;
 import org.sonar.plugins.java.api.semantic.Symbol;
 import org.sonar.plugins.java.api.tree.MemberSelectExpressionTree;
@@ -36,6 +37,8 @@ import org.sonar.plugins.java.api.tree.Tree;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Rule(key = "debugging-SE-MethodBehaviors")
 public class MethodBehaviorReporter extends IssuableSubscriptionVisitor implements DebuggingVisitor {
@@ -69,17 +72,42 @@ public class MethodBehaviorReporter extends IssuableSubscriptionVisitor implemen
       }
     }
 
-    if (methodSymbol.isMethodSymbol()) {
+    if (methodSymbol != null && methodSymbol.isMethodSymbol()) {
       reportYields(reportTree, behaviors.get(methodSymbol));
     }
   }
 
   private void reportYields(Tree reportTree, MethodBehavior mb) {
-    String result = mb != null ? StringUtils.join(mb.yields().stream().map(MethodYield::toString).toArray(), ",") : "";
-    if (result.length() == 0) {
-      result = "No known yield";
+    if (mb != null && !mb.yields().isEmpty()) {
+      List<MethodYield> yields = mb.yields();
+      List<MethodYield> happyPath = yields.stream().filter(y -> !y.isExceptional()).collect(Collectors.toList());
+      List<MethodYield> exceptionalPath = yields.stream().filter(MethodYield::isExceptional).collect(Collectors.toList());
+      StringBuilder sb = new StringBuilder()
+        .append("Happy Path (")
+        .append(happyPath.size())
+        .append("): [" + prettyPrint(happyPath) + "]")
+        .append(", Exceptional path (")
+        .append(exceptionalPath.size())
+        .append("): [" + prettyPrint(exceptionalPath) + "]");
+      reportIssue(reportTree, sb.toString());
     }
-    reportIssue(reportTree, "[" + result + "]");
+  }
+
+  private static String prettyPrint(List<MethodYield> yields) {
+    return StringUtils.join(yields.stream().map(MethodBehaviorReporter::prettyPrint).toArray(), ",");
+  }
+
+  private static String prettyPrint(MethodYield yield) {
+    String result = "{params: [";
+    result += StringUtils.join(Stream.of(yield.parameterConstraints()).map(c -> c == null ? "NO_CONSTRAINT" : c.toString()).toArray(), ",");
+    result += "], result: ";
+    Constraint resultConstraint = yield.resultConstraint();
+    result += resultConstraint == null ? "NO_CONSTRAINT" : resultConstraint.toString();
+    int resultIndex = yield.resultIndex();
+    if (resultIndex >= 0) {
+      result += " (arg" + resultIndex + ")";
+    }
+    return result + "}";
   }
 
 }

@@ -7,7 +7,7 @@ class A {
   }
 
   Object qix() { // Noncompliant
-    System.out.println("yolo"); // Noncompliant
+    System.out.println("yolo"); // Compliant
     return bar(0); // Noncompliant
   }
 
