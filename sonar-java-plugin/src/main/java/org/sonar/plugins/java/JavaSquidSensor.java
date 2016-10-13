@@ -80,6 +80,7 @@ public class JavaSquidSensor implements Sensor {
     javaResourceLocator.setSensorContext(context);
     sonarComponents.setSensorContext(context);
     sonarComponents.registerCheckClasses(CheckList.REPOSITORY_KEY, CheckList.getJavaChecks());
+    sonarComponents.registerCheckClasses(CheckList.REPOSITORY_KEY, CheckList.getDebuggingChecks());
     sonarComponents.registerTestCheckClasses(CheckList.REPOSITORY_KEY, CheckList.getJavaTestChecks());
     JavaConfiguration configuration = createConfiguration();
     Measurer measurer = new Measurer(fs, context, noSonarFilter);

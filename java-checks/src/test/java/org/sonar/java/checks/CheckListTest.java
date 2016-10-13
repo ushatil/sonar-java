@@ -59,6 +59,10 @@ public class CheckListTest {
     "OptionalGetBeforeIsPresentCheck"
   );
 
+  private static final List<String> DEBUGGING_REPORTERS = ImmutableList.of(
+    "debugging-SE-MethodBehaviors"
+  );
+
   /**
    * Enforces that each check declared in list.
    */
@@ -71,7 +75,7 @@ public class CheckListTest {
         count++;
       }
     }
-    assertThat(CheckList.getChecks().size()).isEqualTo(count + SE_CHEKS.size());
+    assertThat(CheckList.getChecks().size()).isEqualTo(count + SE_CHEKS.size() + DEBUGGING_REPORTERS.size());
   }
 
 

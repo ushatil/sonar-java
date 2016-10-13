@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.sonar.sslr.api.RecognitionException;
+
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.java.CharsetAwareVisitor;
@@ -30,10 +31,13 @@ import org.sonar.java.JavaVersionAwareVisitor;
 import org.sonar.java.SonarComponents;
 import org.sonar.java.ast.visitors.SonarSymbolTableVisitor;
 import org.sonar.java.resolve.SemanticModel;
+import org.sonar.java.se.DebuggingVisitor;
+import org.sonar.java.se.MethodBehavior;
 import org.sonar.java.se.SymbolicExecutionVisitor;
 import org.sonar.plugins.java.api.JavaFileScanner;
 import org.sonar.plugins.java.api.JavaFileScannerContext;
 import org.sonar.plugins.java.api.JavaVersion;
+import org.sonar.plugins.java.api.semantic.Symbol.MethodSymbol;
 import org.sonar.plugins.java.api.tree.CompilationUnitTree;
 import org.sonar.plugins.java.api.tree.ImportClauseTree;
 import org.sonar.plugins.java.api.tree.Tree;
@@ -45,6 +49,8 @@ import java.io.File;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class VisitorsBridge {
 
@@ -117,7 +123,9 @@ public class VisitorsBridge {
     JavaFileScannerContext javaFileScannerContext = createScannerContext(tree, semanticModel, sonarComponents, fileParsed);
     // Symbolic execution checks
     if (symbolicExecutionEnabled && isNotJavaLangOrSerializable(PackageUtils.packageName(tree.packageDeclaration(), "/"))) {
-      new SymbolicExecutionVisitor(executableScanners).scanFile(javaFileScannerContext);
+      SymbolicExecutionVisitor symbolicExecutionVisitor = new SymbolicExecutionVisitor(executableScanners);
+      symbolicExecutionVisitor.scanFile(javaFileScannerContext);
+      reportMethodBehaviors(executableScanners, symbolicExecutionVisitor.behaviorCache);
     }
     for (JavaFileScanner scanner : executableScanners) {
       scanner.scanFile(javaFileScannerContext);
@@ -126,6 +134,13 @@ public class VisitorsBridge {
       // Close class loader after all the checks.
       semanticModel.done();
     }
+  }
+
+  private static void reportMethodBehaviors(List<JavaFileScanner> scanners, Map<MethodSymbol, MethodBehavior> behaviorCache) {
+    List<JavaFileScanner> debuggingRules = scanners.stream().filter(s -> s instanceof DebuggingVisitor).collect(Collectors.toList());
+    debuggingRules.stream()
+      .map(DebuggingVisitor.class::cast)
+      .forEach(s -> s.setMethodBehaviors(behaviorCache));
   }
 
   private static List<JavaFileScanner> executableScanners(List<JavaFileScanner> scanners, JavaVersion javaVersion) {

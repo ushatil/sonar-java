@@ -20,6 +20,8 @@
 package org.sonar.java.checks;
 
 import com.google.common.collect.ImmutableList;
+
+import org.sonar.java.checks.debugging.MethodBehaviorReporter;
 import org.sonar.java.checks.naming.BadAbstractClassNameCheck;
 import org.sonar.java.checks.naming.BadClassNameCheck;
 import org.sonar.java.checks.naming.BadConstantNameCheck;
@@ -88,7 +90,12 @@ public final class CheckList {
   }
 
   public static List<Class> getChecks() {
-    return ImmutableList.<Class>builder().addAll(getJavaChecks()).addAll(getJavaTestChecks()).addAll(getXmlChecks()).build();
+    return ImmutableList.<Class>builder()
+      .addAll(getJavaChecks())
+      .addAll(getJavaTestChecks())
+      .addAll(getXmlChecks())
+      .addAll(getDebuggingChecks())
+      .build();
   }
 
   public static List<Class<? extends JavaCheck>> getJavaChecks() {
@@ -480,6 +487,12 @@ public final class CheckList {
       .add(ValidationFiltersCheck.class)
       .add(ActionNumberCheck.class)
       .add(FormNameDuplicationCheck.class)
+      .build();
+  }
+
+  public static List<Class<? extends JavaCheck>> getDebuggingChecks() {
+    return ImmutableList.<Class<? extends JavaCheck>>builder()
+      .add(MethodBehaviorReporter.class)
       .build();
   }
 

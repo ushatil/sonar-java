@@ -21,6 +21,7 @@ package org.sonar.java.se;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.java.ast.visitors.SubscriptionVisitor;
@@ -31,6 +32,7 @@ import org.sonar.plugins.java.api.tree.MethodTree;
 import org.sonar.plugins.java.api.tree.Tree;
 
 import javax.annotation.CheckForNull;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +41,7 @@ public class SymbolicExecutionVisitor extends SubscriptionVisitor {
   private static final Logger LOG = Loggers.get(SymbolicExecutionVisitor.class);
 
   @VisibleForTesting
-  final Map<Symbol.MethodSymbol, MethodBehavior> behaviorCache = new LinkedHashMap<>();
+  public final Map<Symbol.MethodSymbol, MethodBehavior> behaviorCache = new LinkedHashMap<>();
 
   private final ExplodedGraphWalker.ExplodedGraphWalkerFactory egwFactory;
 

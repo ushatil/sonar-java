@@ -76,7 +76,7 @@ public class MethodBehavior {
     return ((JavaSymbol.MethodJavaSymbol) methodSymbol).isConstructor();
   }
 
-  List<MethodYield> yields() {
+  public List<MethodYield> yields() {
     return ImmutableList.<MethodYield>builder().addAll(yields).build();
   }
 

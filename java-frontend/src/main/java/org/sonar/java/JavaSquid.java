@@ -21,6 +21,7 @@ package org.sonar.java;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.api.utils.log.Profiler;
@@ -30,16 +31,20 @@ import org.sonar.java.ast.visitors.FileLinesVisitor;
 import org.sonar.java.ast.visitors.SyntaxHighlighterVisitor;
 import org.sonar.java.filters.CodeVisitorIssueFilter;
 import org.sonar.java.model.VisitorsBridge;
+import org.sonar.java.se.DebuggingVisitor;
 import org.sonar.java.se.checks.SECheck;
 import org.sonar.plugins.java.api.JavaResourceLocator;
 import org.sonar.squidbridge.api.CodeVisitor;
 
 import javax.annotation.Nullable;
+
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class JavaSquid {
 
@@ -83,6 +88,9 @@ public class JavaSquid {
     //AstScanner for main files
     astScanner = new JavaAstScanner(JavaParser.createParser(conf.getCharset()));
     boolean enableSymbolicExecution = hasASymbolicExecutionCheck(visitors);
+    ArrayList<CodeVisitor> codus = Lists.newArrayList(codeVisitors);
+    List<CodeVisitor> collect = codus.stream().filter(cv -> cv instanceof DebuggingVisitor).collect(Collectors.toList());
+
     astScanner.setVisitorBridge(createVisitorBridge(codeVisitors, classpath, conf, sonarComponents, enableSymbolicExecution));
 
     //AstScanner for test files
