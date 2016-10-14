@@ -32,12 +32,10 @@ import org.sonar.java.SonarComponents;
 import org.sonar.java.ast.visitors.SonarSymbolTableVisitor;
 import org.sonar.java.resolve.SemanticModel;
 import org.sonar.java.se.DebuggingVisitor;
-import org.sonar.java.se.MethodBehavior;
 import org.sonar.java.se.SymbolicExecutionVisitor;
 import org.sonar.plugins.java.api.JavaFileScanner;
 import org.sonar.plugins.java.api.JavaFileScannerContext;
 import org.sonar.plugins.java.api.JavaVersion;
-import org.sonar.plugins.java.api.semantic.Symbol.MethodSymbol;
 import org.sonar.plugins.java.api.tree.CompilationUnitTree;
 import org.sonar.plugins.java.api.tree.ImportClauseTree;
 import org.sonar.plugins.java.api.tree.Tree;
@@ -49,7 +47,6 @@ import java.io.File;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 public class VisitorsBridge {
@@ -125,7 +122,7 @@ public class VisitorsBridge {
     if (symbolicExecutionEnabled && isNotJavaLangOrSerializable(PackageUtils.packageName(tree.packageDeclaration(), "/"))) {
       SymbolicExecutionVisitor symbolicExecutionVisitor = new SymbolicExecutionVisitor(executableScanners);
       symbolicExecutionVisitor.scanFile(javaFileScannerContext);
-      reportMethodBehaviors(executableScanners, symbolicExecutionVisitor.behaviorCache);
+      reportMethodBehaviors(executableScanners, symbolicExecutionVisitor);
     }
     for (JavaFileScanner scanner : executableScanners) {
       scanner.scanFile(javaFileScannerContext);
@@ -136,11 +133,11 @@ public class VisitorsBridge {
     }
   }
 
-  private static void reportMethodBehaviors(List<JavaFileScanner> scanners, Map<MethodSymbol, MethodBehavior> behaviorCache) {
+  private static void reportMethodBehaviors(List<JavaFileScanner> scanners, SymbolicExecutionVisitor symbolicExecutionVisitor) {
     List<JavaFileScanner> debuggingRules = scanners.stream().filter(s -> s instanceof DebuggingVisitor).collect(Collectors.toList());
     debuggingRules.stream()
       .map(DebuggingVisitor.class::cast)
-      .forEach(s -> s.setMethodBehaviors(behaviorCache));
+      .forEach(s -> s.setDebuggingData(symbolicExecutionVisitor.behaviorCache, symbolicExecutionVisitor.interruptedMethods));
   }
 
   private static List<JavaFileScanner> executableScanners(List<JavaFileScanner> scanners, JavaVersion javaVersion) {

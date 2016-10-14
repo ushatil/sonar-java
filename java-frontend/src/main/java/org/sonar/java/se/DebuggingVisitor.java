@@ -22,10 +22,11 @@ package org.sonar.java.se;
 import com.google.common.annotations.Beta;
 
 import org.sonar.plugins.java.api.semantic.Symbol;
+import org.sonar.plugins.java.api.semantic.Symbol.MethodSymbol;
 
 import java.util.Map;
 
 @Beta
 public interface DebuggingVisitor {
-  void setMethodBehaviors(Map<Symbol.MethodSymbol, MethodBehavior> behaviors);
+  void setDebuggingData(Map<Symbol.MethodSymbol, MethodBehavior> behaviors, Map<MethodSymbol, Exception> interruptedMethods);
 }

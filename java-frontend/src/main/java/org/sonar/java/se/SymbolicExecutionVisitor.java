@@ -43,6 +43,9 @@ public class SymbolicExecutionVisitor extends SubscriptionVisitor {
   @VisibleForTesting
   public final Map<Symbol.MethodSymbol, MethodBehavior> behaviorCache = new LinkedHashMap<>();
 
+  @VisibleForTesting
+  public final Map<Symbol.MethodSymbol, Exception> interruptedMethods = new LinkedHashMap<>();
+
   private final ExplodedGraphWalker.ExplodedGraphWalkerFactory egwFactory;
 
   public SymbolicExecutionVisitor(List<JavaFileScanner> executableScanners) {
@@ -61,11 +64,12 @@ public class SymbolicExecutionVisitor extends SubscriptionVisitor {
 
   @CheckForNull
   public MethodBehavior execute(MethodTree methodTree) {
+    Symbol.MethodSymbol methodSymbol = methodTree.symbol();
     try {
-      MethodBehavior methodBehavior = behaviorCache.get(methodTree.symbol());
+      MethodBehavior methodBehavior = behaviorCache.get(methodSymbol);
       if(methodBehavior == null) {
-        methodBehavior = new MethodBehavior(methodTree.symbol());
-        behaviorCache.put(methodTree.symbol(), methodBehavior);
+        methodBehavior = new MethodBehavior(methodSymbol);
+        behaviorCache.put(methodSymbol, methodBehavior);
         ExplodedGraphWalker walker = egwFactory.createWalker(this);
         methodBehavior = walker.visitMethod(methodTree, methodBehavior);
         methodBehavior.completed();
@@ -73,6 +77,7 @@ public class SymbolicExecutionVisitor extends SubscriptionVisitor {
       return methodBehavior;
     } catch (ExplodedGraphWalker.MaximumStepsReachedException | ExplodedGraphWalker.ExplodedGraphTooBigException | BinaryRelation.TransitiveRelationExceededException exception) {
       LOG.debug("Could not complete symbolic execution: ", exception);
+      interruptedMethods.put(methodSymbol, exception);
     }
     return null;
   }

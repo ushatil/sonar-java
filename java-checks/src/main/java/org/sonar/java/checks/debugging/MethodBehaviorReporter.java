@@ -29,8 +29,11 @@ import org.sonar.java.se.MethodYield;
 import org.sonar.java.se.constraint.Constraint;
 import org.sonar.plugins.java.api.IssuableSubscriptionVisitor;
 import org.sonar.plugins.java.api.semantic.Symbol;
+import org.sonar.plugins.java.api.tree.IdentifierTree;
 import org.sonar.plugins.java.api.tree.MethodTree;
 import org.sonar.plugins.java.api.tree.Tree;
+
+import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.List;
@@ -42,10 +45,12 @@ import java.util.stream.Stream;
 public class MethodBehaviorReporter extends IssuableSubscriptionVisitor implements DebuggingVisitor {
 
   Map<Symbol.MethodSymbol, MethodBehavior> behaviors;
+  Map<Symbol.MethodSymbol, Exception> interrupted;
 
   @Override
-  public void setMethodBehaviors(Map<Symbol.MethodSymbol, MethodBehavior> behaviors) {
+  public void setDebuggingData(Map<Symbol.MethodSymbol, MethodBehavior> behaviors, Map<Symbol.MethodSymbol, Exception> interrupted) {
     this.behaviors = new HashMap<>(behaviors);
+    this.interrupted = new HashMap<>(interrupted);
   }
 
   @Override
@@ -59,11 +64,21 @@ public class MethodBehaviorReporter extends IssuableSubscriptionVisitor implemen
     Symbol methodSymbol = methodTree.symbol();
 
     if (methodSymbol != null && methodSymbol.isMethodSymbol()) {
-      reportYields(methodTree.simpleName(), behaviors.get(methodSymbol));
+      IdentifierTree reportTree = methodTree.simpleName();
+      reportYields(reportTree, methodSymbol);
+      reportInterruptedException(reportTree, methodSymbol);
     }
   }
 
-  private void reportYields(Tree reportTree, MethodBehavior mb) {
+  private void reportInterruptedException(Tree reportTree, @Nullable Symbol methodSymbol) {
+    Exception e = interrupted.get(methodSymbol);
+    if (e != null) {
+      reportIssue(reportTree, "SE Interrupted: " + e.getMessage());
+    }
+  }
+
+  private void reportYields(Tree reportTree, @Nullable Symbol methodSymbol) {
+    MethodBehavior mb = behaviors.get(methodSymbol);
     if (mb != null && !mb.yields().isEmpty()) {
       List<MethodYield> yields = mb.yields();
       List<MethodYield> happyPath = yields.stream().filter(y -> !y.isExceptional()).collect(Collectors.toList());
