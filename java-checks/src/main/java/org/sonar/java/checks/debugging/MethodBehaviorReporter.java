@@ -29,8 +29,6 @@ import org.sonar.java.se.MethodYield;
 import org.sonar.java.se.constraint.Constraint;
 import org.sonar.plugins.java.api.IssuableSubscriptionVisitor;
 import org.sonar.plugins.java.api.semantic.Symbol;
-import org.sonar.plugins.java.api.tree.MemberSelectExpressionTree;
-import org.sonar.plugins.java.api.tree.MethodInvocationTree;
 import org.sonar.plugins.java.api.tree.MethodTree;
 import org.sonar.plugins.java.api.tree.Tree;
 
@@ -52,28 +50,16 @@ public class MethodBehaviorReporter extends IssuableSubscriptionVisitor implemen
 
   @Override
   public List<Tree.Kind> nodesToVisit() {
-    return ImmutableList.of(Tree.Kind.METHOD, Tree.Kind.METHOD_INVOCATION);
+    return ImmutableList.of(Tree.Kind.METHOD);
   }
 
   @Override
   public void visitNode(Tree tree) {
-    Symbol methodSymbol;
-    Tree reportTree;
-    if (tree.is(Tree.Kind.METHOD)) {
-      MethodTree methodTree = (MethodTree) tree;
-      methodSymbol = methodTree.symbol();
-      reportTree = methodTree.simpleName();
-    } else {
-      MethodInvocationTree mit = (MethodInvocationTree) tree;
-      methodSymbol = mit.symbol();
-      reportTree = mit.methodSelect();
-      if (reportTree.is(Tree.Kind.MEMBER_SELECT)) {
-        reportTree = ((MemberSelectExpressionTree) reportTree).identifier();
-      }
-    }
+    MethodTree methodTree = (MethodTree) tree;
+    Symbol methodSymbol = methodTree.symbol();
 
     if (methodSymbol != null && methodSymbol.isMethodSymbol()) {
-      reportYields(reportTree, behaviors.get(methodSymbol));
+      reportYields(methodTree.simpleName(), behaviors.get(methodSymbol));
     }
   }
 
@@ -82,19 +68,25 @@ public class MethodBehaviorReporter extends IssuableSubscriptionVisitor implemen
       List<MethodYield> yields = mb.yields();
       List<MethodYield> happyPath = yields.stream().filter(y -> !y.isExceptional()).collect(Collectors.toList());
       List<MethodYield> exceptionalPath = yields.stream().filter(MethodYield::isExceptional).collect(Collectors.toList());
-      StringBuilder sb = new StringBuilder()
-        .append("Happy Path (")
-        .append(happyPath.size())
-        .append("): [" + prettyPrint(happyPath) + "]")
-        .append(", Exceptional path (")
-        .append(exceptionalPath.size())
-        .append("): [" + prettyPrint(exceptionalPath) + "]");
+      StringBuilder sb = new StringBuilder();
+      if (!happyPath.isEmpty()) {
+        prettyPrint(sb, "Happy Path", happyPath);
+        if (!exceptionalPath.isEmpty()) {
+          sb.append(", ");
+        }
+      }
+      if (!exceptionalPath.isEmpty()) {
+        prettyPrint(sb, "Exceptional path", exceptionalPath);
+      }
       reportIssue(reportTree, sb.toString());
     }
   }
 
-  private static String prettyPrint(List<MethodYield> yields) {
-    return StringUtils.join(yields.stream().map(MethodBehaviorReporter::prettyPrint).toArray(), ",");
+  private static void prettyPrint(StringBuilder sb, String pathName, List<MethodYield> yields) {
+    sb.append(pathName)
+      .append(" (")
+      .append(yields.size())
+      .append("): [" + StringUtils.join(yields.stream().map(MethodBehaviorReporter::prettyPrint).toArray(), ",") + "]");
   }
 
   private static String prettyPrint(MethodYield yield) {
