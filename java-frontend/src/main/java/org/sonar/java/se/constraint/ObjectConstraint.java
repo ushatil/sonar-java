@@ -22,6 +22,7 @@ package org.sonar.java.se.constraint;
 import org.sonar.plugins.java.api.tree.Tree;
 
 import javax.annotation.Nullable;
+
 import java.util.Objects;
 
 public class ObjectConstraint implements Constraint {
@@ -114,5 +115,9 @@ public class ObjectConstraint implements Constraint {
   @Override
   public int hashCode() {
     return Objects.hash(isNull, syntaxNode, status);
+  }
+
+  public boolean sameStatus(ObjectConstraint constraint) {
+    return hasStatus(constraint.status);
   }
 }

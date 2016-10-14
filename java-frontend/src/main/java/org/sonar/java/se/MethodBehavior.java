@@ -80,6 +80,17 @@ public class MethodBehavior {
     return ImmutableList.<MethodYield>builder().addAll(yields).build();
   }
 
+  public List<MethodYield> unifiedYields() {
+    List<MethodYield> results = new ArrayList<>(yields.size());
+    for (MethodYield yield : yields) {
+      if (results.stream().noneMatch(yield::similarYield)) {
+        results.add(yield);
+      }
+    }
+
+    return ImmutableList.<MethodYield>builder().addAll(results).build();
+  }
+
   public void addParameter(Symbol symbol, SymbolicValue sv) {
     parameters.put(symbol, sv);
   }

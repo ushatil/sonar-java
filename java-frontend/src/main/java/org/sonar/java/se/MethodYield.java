@@ -126,4 +126,54 @@ public class MethodYield {
     }
     return other.resultConstraint == null;
   }
+
+  public boolean similarYield(MethodYield other) {
+    if (exception != other.exception) {
+      return false;
+    }
+    if (!isSimilar(resultConstraint, other.resultConstraint)) {
+      return false;
+    }
+    if (parametersConstraints.length != other.parametersConstraints.length) {
+      return false;
+    }
+    for (int i = 0; i < parametersConstraints.length; i++) {
+      if (!isSimilar(parametersConstraints[i], other.parametersConstraints[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean isSimilar(Constraint a, Constraint b) {
+    if (a instanceof ObjectConstraint && b instanceof ObjectConstraint) {
+      ObjectConstraint aObject = (ObjectConstraint) a;
+      ObjectConstraint bObject = (ObjectConstraint) b;
+      if (aObject.isNull() && bObject.isNull()) {
+        return true;
+      }
+      if (!aObject.isNull() && !bObject.isNull()) {
+        return aObject.sameStatus(bObject);
+      }
+    } else if (a instanceof BooleanConstraint && b instanceof BooleanConstraint) {
+      return a == b;
+    }
+    return false;
+  }
+
+  public Constraint[] parameterConstraints() {
+    return Arrays.copyOf(parametersConstraints, parametersConstraints.length);
+  }
+
+  public int resultIndex() {
+    return resultIndex;
+  }
+
+  public boolean isExceptional() {
+    return exception;
+  }
+
+  public Constraint resultConstraint() {
+    return resultConstraint;
+  }
 }
