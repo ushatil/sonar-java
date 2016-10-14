@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Resources;
 import com.google.gson.Gson;
+
 import org.apache.commons.lang.StringUtils;
 import org.sonar.api.rule.RuleStatus;
 import org.sonar.api.rules.RuleType;
@@ -32,10 +33,12 @@ import org.sonar.api.server.rule.RulesDefinitionAnnotationLoader;
 import org.sonar.api.utils.AnnotationUtils;
 import org.sonar.check.Cardinality;
 import org.sonar.java.checks.CheckList;
+import org.sonar.java.se.DebuggingVisitor;
 import org.sonar.squidbridge.annotations.RuleTemplate;
 import org.sonar.squidbridge.rules.ExternalDescriptionLoader;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -80,7 +83,18 @@ public class JavaRulesDefinition implements RulesDefinition {
     if (ruleAnnotation.cardinality() == Cardinality.MULTIPLE) {
       throw new IllegalArgumentException("Cardinality is not supported, use the RuleTemplate annotation instead for " + ruleClass);
     }
-    ruleMetadata(ruleClass, rule);
+    if (DebuggingVisitor.class.isAssignableFrom(ruleClass)) {
+      debuggingRuleMetadata(ruleClass, rule);
+    } else {
+      ruleMetadata(ruleClass, rule);
+    }
+  }
+
+  private static void debuggingRuleMetadata(Class<?> ruleClass, NewRule rule) {
+    rule.setHtmlDescription("Symbolic Execution Debbuging Rule. Only for internal use.");
+    rule.setSeverity("INFO");
+    rule.setName(rule.key().substring(rule.key().indexOf("debugging-SE-")));
+    rule.addTags(new String[] {"symbolic-execution", "debugging", "internal"});
   }
 
   private void ruleMetadata(Class<?> ruleClass, NewRule rule) {

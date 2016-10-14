@@ -29,7 +29,6 @@ import org.sonar.java.se.MethodYield;
 import org.sonar.java.se.constraint.Constraint;
 import org.sonar.plugins.java.api.IssuableSubscriptionVisitor;
 import org.sonar.plugins.java.api.semantic.Symbol;
-import org.sonar.plugins.java.api.tree.IdentifierTree;
 import org.sonar.plugins.java.api.tree.MethodTree;
 import org.sonar.plugins.java.api.tree.Tree;
 
@@ -41,16 +40,14 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@Rule(key = "debugging-SE-MethodBehaviors")
-public class MethodBehaviorReporter extends IssuableSubscriptionVisitor implements DebuggingVisitor {
+@Rule(key = "debugging-SE-Yields")
+public class MethodBehaviorYieldsReporter extends IssuableSubscriptionVisitor implements DebuggingVisitor {
 
   Map<Symbol.MethodSymbol, MethodBehavior> behaviors;
-  Map<Symbol.MethodSymbol, Exception> interrupted;
 
   @Override
   public void setDebuggingData(Map<Symbol.MethodSymbol, MethodBehavior> behaviors, Map<Symbol.MethodSymbol, Exception> interrupted) {
     this.behaviors = new HashMap<>(behaviors);
-    this.interrupted = new HashMap<>(interrupted);
   }
 
   @Override
@@ -64,23 +61,20 @@ public class MethodBehaviorReporter extends IssuableSubscriptionVisitor implemen
     Symbol methodSymbol = methodTree.symbol();
 
     if (methodSymbol != null && methodSymbol.isMethodSymbol()) {
-      IdentifierTree reportTree = methodTree.simpleName();
-      reportYields(reportTree, methodSymbol);
-      reportInterruptedException(reportTree, methodSymbol);
+      reportMethodBehavior(methodTree.simpleName(), methodSymbol);
     }
   }
 
-  private void reportInterruptedException(Tree reportTree, @Nullable Symbol methodSymbol) {
-    Exception e = interrupted.get(methodSymbol);
-    if (e != null) {
-      reportIssue(reportTree, "SE Interrupted: " + e.getMessage());
-    }
-  }
-
-  private void reportYields(Tree reportTree, @Nullable Symbol methodSymbol) {
+  private void reportMethodBehavior(Tree reportTree, @Nullable Symbol methodSymbol) {
     MethodBehavior mb = behaviors.get(methodSymbol);
-    if (mb != null && !mb.yields().isEmpty()) {
-      List<MethodYield> yields = mb.yields();
+    if (mb != null) {
+      reportYields(reportTree, "Yields", mb.yields());
+    }
+
+  }
+
+  private void reportYields(Tree reportTree, String yieldKind, List<MethodYield> yields) {
+    if (!yields.isEmpty()) {
       List<MethodYield> happyPath = yields.stream().filter(y -> !y.isExceptional()).collect(Collectors.toList());
       List<MethodYield> exceptionalPath = yields.stream().filter(MethodYield::isExceptional).collect(Collectors.toList());
       StringBuilder sb = new StringBuilder();
@@ -93,7 +87,7 @@ public class MethodBehaviorReporter extends IssuableSubscriptionVisitor implemen
       if (!exceptionalPath.isEmpty()) {
         prettyPrint(sb, "Exceptional path", exceptionalPath);
       }
-      reportIssue(reportTree, sb.toString());
+      reportIssue(reportTree, yieldKind + ": " + sb.toString());
     }
   }
 
@@ -101,7 +95,7 @@ public class MethodBehaviorReporter extends IssuableSubscriptionVisitor implemen
     sb.append(pathName)
       .append(" (")
       .append(yields.size())
-      .append("): [" + StringUtils.join(yields.stream().map(MethodBehaviorReporter::prettyPrint).toArray(), ",") + "]");
+      .append("): [" + StringUtils.join(yields.stream().map(MethodBehaviorYieldsReporter::prettyPrint).toArray(), ",") + "]");
   }
 
   private static String prettyPrint(MethodYield yield) {

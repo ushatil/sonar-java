@@ -22,11 +22,11 @@ package org.sonar.java.checks.debugging;
 import org.junit.Test;
 import org.sonar.java.checks.verifier.JavaCheckVerifier;
 
-public class MethodBehaviorReporterTest {
+public class MethodBehaviorUnifiedYieldsReporterTest {
 
   @Test
   public void test() {
-    JavaCheckVerifier.verify("src/test/files/checks/MethodBehaviorReporter.java", new MethodBehaviorReporter());
+    JavaCheckVerifier.verify("src/test/files/checks/MethodBehaviorUnifiedYieldsReporter.java", new MethodBehaviorUnifiedYieldsReporter());
   }
 
 }

@@ -21,7 +21,9 @@ package org.sonar.java.checks;
 
 import com.google.common.collect.ImmutableList;
 
-import org.sonar.java.checks.debugging.MethodBehaviorReporter;
+import org.sonar.java.checks.debugging.InterruptedSymbolicExecutionReporter;
+import org.sonar.java.checks.debugging.MethodBehaviorUnifiedYieldsReporter;
+import org.sonar.java.checks.debugging.MethodBehaviorYieldsReporter;
 import org.sonar.java.checks.naming.BadAbstractClassNameCheck;
 import org.sonar.java.checks.naming.BadClassNameCheck;
 import org.sonar.java.checks.naming.BadConstantNameCheck;
@@ -492,7 +494,9 @@ public final class CheckList {
 
   public static List<Class<? extends JavaCheck>> getDebuggingChecks() {
     return ImmutableList.<Class<? extends JavaCheck>>builder()
-      .add(MethodBehaviorReporter.class)
+      .add(MethodBehaviorYieldsReporter.class)
+      .add(MethodBehaviorUnifiedYieldsReporter.class)
+      .add(InterruptedSymbolicExecutionReporter.class)
       .build();
   }
 

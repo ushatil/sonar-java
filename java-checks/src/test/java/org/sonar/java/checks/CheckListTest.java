@@ -60,7 +60,9 @@ public class CheckListTest {
   );
 
   private static final List<String> DEBUGGING_REPORTERS = ImmutableList.of(
-    "debugging-SE-MethodBehaviors"
+    "debugging-SE-Yields",
+    "debugging-SE-UnifiedYields",
+    "debugging-SE-InterruptedSymbolicExecution"
   );
 
   /**
@@ -140,6 +142,9 @@ public class CheckListTest {
       assertThat(keys).as("Duplicate key " + rule.key()).excludes(rule.key());
       keys.add(rule.key());
       names.add(rule.name());
+      if (DEBUGGING_REPORTERS.contains(rule.key())) {
+        continue;
+      }
       assertThat(getClass().getResource("/org/sonar/l10n/java/rules/" + CheckList.REPOSITORY_KEY + "/" + keyMap.get(rule.key()) + "_java.html"))
         .overridingErrorMessage("No description for " + rule.key()+ " " +keyMap.get(rule.key()))
         .isNotNull();
