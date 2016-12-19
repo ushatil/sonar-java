@@ -29,9 +29,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.Multiset;
+import com.google.common.collect.Sets;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
-import org.assertj.core.api.Fail;
+import org.assertj.core.api.SoftAssertions;
 import org.sonar.java.AnalyzerMessage;
 import org.sonar.java.ast.JavaAstScanner;
 import org.sonar.java.model.VisitorsBridgeForTests;
@@ -43,6 +44,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -93,6 +95,7 @@ public class JavaCheckVerifier {
   private static final String DEFAULT_TEST_JARS_DIRECTORY = "target/test-jars";
   private final String testJarsDirectory;
   private final Expectations expectations;
+  private SoftAssertions flowAssertions;
 
   private JavaCheckVerifier() {
     this.testJarsDirectory = DEFAULT_TEST_JARS_DIRECTORY;
@@ -207,9 +210,11 @@ public class JavaCheckVerifier {
     Preconditions.checkState(!issues.isEmpty(), "At least one issue expected");
     List<Integer> unexpectedLines = Lists.newLinkedList();
     Multimap<Integer, Expectations.Issue> expected = expectations.issues;
+    flowAssertions = new SoftAssertions();
     for (AnalyzerMessage issue : issues) {
       validateIssue(expected, unexpectedLines, issue);
     }
+    flowAssertions.assertAll();
     if (!expected.isEmpty() || !unexpectedLines.isEmpty()) {
       Collections.sort(unexpectedLines);
       String expectedMsg = !expected.isEmpty() ? ("Expected " + expected) : "";
@@ -252,50 +257,41 @@ public class JavaCheckVerifier {
       validateSecondaryLocations(actual, expected);
     }
     if (attrs.containsKey(FLOWS)) {
-      validateFlows(analyzerMessage.flows, (List<String>) attrs.get(FLOWS));
+      validateFlows(analyzerMessage.flows, new HashSet<>((List<String>) attrs.get(FLOWS)));
     }
   }
 
-  private static void validateLocation(Map<Expectations.IssueAttribute, Object> attrs, AnalyzerMessage.TextSpan textSpan) {
+  private void validateLocation(Map<Expectations.IssueAttribute, Object> attrs, AnalyzerMessage.TextSpan textSpan) {
     Preconditions.checkNotNull(textSpan);
-    assertAttributeMatch(normalizeColumn(textSpan.startCharacter), attrs, START_COLUMN);
-    assertAttributeMatch(textSpan.endLine, attrs, END_LINE);
-    assertAttributeMatch(normalizeColumn(textSpan.endCharacter), attrs, END_COLUMN);
+    softAssertAttributeMatch(normalizeColumn(textSpan.startCharacter), attrs, START_COLUMN, flowAssertions);
+    softAssertAttributeMatch(textSpan.endLine, attrs, END_LINE, flowAssertions);
+    softAssertAttributeMatch(normalizeColumn(textSpan.endCharacter), attrs, END_COLUMN, flowAssertions);
   }
 
-  private void validateFlows(List<List<AnalyzerMessage>> actual, List<String> expectedFlowIds) {
+  private void validateFlows(List<List<AnalyzerMessage>> actual, Set<String> expectedFlowIds) {
     Map<String, List<AnalyzerMessage>> foundFlows = new HashMap<>();
     List<List<AnalyzerMessage>> unexpectedFlows = new ArrayList<>();
     actual.forEach(f -> validateFlow(f, foundFlows, unexpectedFlows));
-    expectedFlowIds.removeAll(foundFlows.keySet());
-
-    assertExpectedAndMissingFlows(expectedFlowIds, unexpectedFlows);
+    Sets.SetView<String> missingFlows = Sets.difference(expectedFlowIds, foundFlows.keySet());
+    assertExpectedAndMissingFlows(missingFlows, unexpectedFlows);
     validateFoundFlows(foundFlows);
   }
 
-  private void assertExpectedAndMissingFlows(List<String> expectedFlowIds, List<List<AnalyzerMessage>> unexpectedFlows) {
-    if (expectedFlowIds.size() == 1 && expectedFlowIds.size() == unexpectedFlows.size()) {
-      assertSoleFlowDiscrepancy(expectedFlowIds.get(0), unexpectedFlows.get(0));
+  private void assertExpectedAndMissingFlows(Set<String> missingFlows, List<List<AnalyzerMessage>> unexpectedFlows) {
+    if (missingFlows.size() == 1 && missingFlows.size() == unexpectedFlows.size()) {
+      assertSoleFlowDiscrepancy(missingFlows.iterator().next(), unexpectedFlows.get(0));
     }
 
-    String unexpectedMsg = unexpectedFlows.stream()
-      .map(JavaCheckVerifier::flowToString)
-      .collect(joining("\n"));
+    flowAssertions.assertThat(unexpectedFlows).as("There should be no unexpected flows").isEmpty();
 
-    String missingMsg = expectedFlowIds.stream().map(fid -> String.format("%s [%s]", fid, expectations.flowToLines(fid))).collect(joining(","));
-
-    if (!unexpectedMsg.isEmpty() || !missingMsg.isEmpty()) {
-      unexpectedMsg = unexpectedMsg.isEmpty() ? "" : String.format("Unexpected flows: %s. ", unexpectedMsg);
-      missingMsg = missingMsg.isEmpty() ? "" : String.format("Missing flows: %s.", missingMsg);
-      Fail.fail(unexpectedMsg + missingMsg);
-    }
+    flowAssertions.assertThat(missingFlows).as("There should be no missing flows").isEmpty();
   }
 
   private void assertSoleFlowDiscrepancy(String expectedId, List<AnalyzerMessage> actualFlow) {
     Collection<Expectations.FlowComment> expected = expectations.flows.get(expectedId);
     List<Integer> expectedLines = expected.stream().map(f -> f.line).collect(Collectors.toList());
     List<Integer> actualLines = actualFlow.stream().map(AnalyzerMessage::getLine).collect(Collectors.toList());
-    assertThat(actualLines).as("Flow " + expectedId + " has line differences").isEqualTo(expectedLines);
+    flowAssertions.assertThat(actualLines).as("Flow " + expectedId + " has line differences").isEqualTo(expectedLines);
   }
 
   private void validateFlow(List<AnalyzerMessage> flow, Map<String, List<AnalyzerMessage>> foundFlows, List<List<AnalyzerMessage>> unexpectedFlows) {
@@ -320,7 +316,7 @@ public class JavaCheckVerifier {
     Iterator<Expectations.FlowComment> expectedIterator = expected.iterator();
     while (actualIterator.hasNext() && expectedIterator.hasNext()) {
       AnalyzerMessage.TextSpan flowLocation = actualIterator.next().primaryLocation();
-      assertThat(flowLocation).isNotNull();
+      flowAssertions.assertThat(flowLocation).isNotNull();
       Expectations.FlowComment flowComment = expectedIterator.next();
       validateLocation(flowComment.attributes, flowLocation);
     }
@@ -336,7 +332,7 @@ public class JavaCheckVerifier {
       .forEach(f -> expectedMessages.put(f.line, f.get(MESSAGE)));
 
     Multimap<Integer, String> missing = Multimaps.filterEntries(expectedMessages, e -> !actualMessages.containsEntry(e.getKey(), e.getValue()));
-    assertThat(missing.asMap())
+    flowAssertions.assertThat(missing.asMap())
       .overridingErrorMessage("Wrong messages in flow %s\n expected: %s\n actual: %s", flowId, expectedMessages, actualMessages)
       .isEmpty();
   }
@@ -368,6 +364,12 @@ public class JavaCheckVerifier {
   private static void assertAttributeMatch(Object value, Map<Expectations.IssueAttribute, Object> attributes, Expectations.IssueAttribute attribute) {
     if (attributes.containsKey(attribute)) {
       assertThat(value).as("attribute mismatch for " + attribute + ": " + attributes).isEqualTo(attribute.getter.apply(attributes.get(attribute)));
+    }
+  }
+
+  private static void softAssertAttributeMatch(Object value, Map<Expectations.IssueAttribute, Object> attributes, Expectations.IssueAttribute attribute, SoftAssertions softAssertions) {
+    if (attributes.containsKey(attribute)) {
+      softAssertions.assertThat(value).as("attribute mismatch for " + attribute + ": " + attributes).isEqualTo(attribute.getter.apply(attributes.get(attribute)));
     }
   }
 

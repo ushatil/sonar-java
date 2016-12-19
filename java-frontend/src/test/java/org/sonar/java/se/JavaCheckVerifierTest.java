@@ -21,10 +21,12 @@ package org.sonar.java.se;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import org.assertj.core.api.Fail;
+import org.assertj.core.api.SoftAssertionError;
 import org.junit.Test;
 import org.sonar.java.AnalyzerMessage;
 import org.sonar.java.model.InternalSyntaxToken;
@@ -273,11 +275,21 @@ public class JavaCheckVerifierTest {
         .flow(17, "msg", 19, null)
         .add()
       ;
-    try {
-      JavaCheckVerifier.verify("src/test/files/JavaCheckVerifierFlows.java", fakeVisitor);
-    } catch (AssertionError e) {
-      assertThat(e).hasMessage("[Flow npe1 has line differences] expected:<[[3, 9]]> but was:<[[5, 6]]>");
-    }
+    Throwable throwable = catchThrowable(() -> JavaCheckVerifier.verify("src/test/files/JavaCheckVerifierFlows.java", fakeVisitor));
+
+    ImmutableSet<String> messages = ImmutableSet.of(
+      "[Flow npe1 has line differences] expected:<[[3, 9]]> but was:<[[5, 6]]>",
+      "[There should be no unexpected flows]",
+      "[There should be no missing flows]");
+
+    assertThat(throwable)
+      .isInstanceOf(SoftAssertionError.class)
+      .extracting(JavaCheckVerifierTest::softAssertErrors)
+      .allMatch(msg -> messages.stream().anyMatch(expected -> msg.toString().contains(expected)));
+  }
+
+  private static List<String> softAssertErrors(Throwable e) {
+    return ((SoftAssertionError) e).getErrors();
   }
 
   @Test
@@ -291,11 +303,12 @@ public class JavaCheckVerifierTest {
         .flow(17, "msg", 19, null)
         .add();
 
-    try {
-      JavaCheckVerifier.verify("src/test/files/JavaCheckVerifierFlows.java", fakeVisitor);
-    } catch (AssertionError e) {
-      assertThat(e).hasMessage("Missing flows: npe1 [3,9].");
-    }
+    Throwable throwable = catchThrowable(() -> JavaCheckVerifier.verify("src/test/files/JavaCheckVerifierFlows.java", fakeVisitor));
+
+    assertThat(throwable)
+      .isInstanceOf(SoftAssertionError.class)
+      .extracting(JavaCheckVerifierTest::softAssertErrors)
+      .allMatch(e -> e.toString().contains("npe1"));
   }
 
   @Test
@@ -313,11 +326,14 @@ public class JavaCheckVerifierTest {
         .add();
 
     Throwable throwable = catchThrowable(() -> JavaCheckVerifier.verify("src/test/files/JavaCheckVerifierFlows.java", fakeVisitor));
+    String expected = "Wrong messages in flow npe1\n"
+      + " expected: {3=[a is assigned to null here], 9=[a is assigned to b here]}\n"
+      + " actual: {3=[invalid 1], 9=[invalid 2]}";
+
     assertThat(throwable)
       .isInstanceOf(AssertionError.class)
-      .hasMessage("Wrong messages in flow npe1\n"
-        + " expected: {3=[a is assigned to null here], 9=[a is assigned to b here]}\n"
-        + " actual: {3=[invalid 1], 9=[invalid 2]}");
+      .extracting(Throwable::getMessage)
+      .matches(m -> m[0].toString().contains(expected));
   }
 
   @Test
@@ -333,11 +349,15 @@ public class JavaCheckVerifierTest {
       .issueWithFlow(20)
         .flow(17, "msg", 19, null)
         .add();
-    try {
-      JavaCheckVerifier.verify("src/test/files/JavaCheckVerifierFlows.java", fakeVisitor);
-    } catch (AssertionError e) {
-      assertThat(e).hasMessage("[attribute mismatch for START_COLUMN: {MESSAGE=a is assigned to null here, START_COLUMN=12, END_COLUMN=20}] expected:<[12]> but was:<[6]>");
-    }
+
+    Throwable throwable = catchThrowable(() -> JavaCheckVerifier.verify("src/test/files/JavaCheckVerifierFlows.java", fakeVisitor));
+
+    String expectedMessage = "[attribute mismatch for START_COLUMN: {MESSAGE=a is assigned to null here, START_COLUMN=12, END_COLUMN=20}] expected:<[12]> but was:<[6]>";
+
+    assertThat(throwable)
+      .isInstanceOf(SoftAssertionError.class)
+      .extracting(JavaCheckVerifierTest::softAssertErrors)
+      .allMatch(e -> e.toString().contains(expectedMessage));
   }
 
   @Test
