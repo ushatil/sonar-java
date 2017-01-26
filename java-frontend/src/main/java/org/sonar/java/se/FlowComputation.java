@@ -181,16 +181,11 @@ public class FlowComputation {
     if (learnedValue.isPresent()) {
       ExplodedGraph.Node.LearnedValue lv = learnedValue.get();
       Constraint constraint = parent.programState.getConstraint(lv.getSv());
-      JavaFileScannerContext.Location location = constraint == null ? location(parent) :
-        location(parent, String.format("'%s' is assigned %s", lv.getSymbol().name(), constraint.valueAsString()));
-      flow.add(location);
+      String message = constraint == null ? "..." : String.format("'%s' is assigned %s", lv.getSymbol().name(), constraint.valueAsString());
+      flow.add(location(parent, message));
       return parent.programState.getLastEvaluated();
     }
     return trackSymbol;
-  }
-
-  private static JavaFileScannerContext.Location location(ExplodedGraph.Node node) {
-    return location(node, "...");
   }
 
   private static JavaFileScannerContext.Location location(ExplodedGraph.Node node, String message) {
