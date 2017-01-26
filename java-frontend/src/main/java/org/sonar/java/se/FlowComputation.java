@@ -29,13 +29,13 @@ import org.sonar.java.se.symbolicvalues.SymbolicValue;
 import org.sonar.plugins.java.api.JavaFileScannerContext;
 import org.sonar.plugins.java.api.semantic.Symbol;
 import org.sonar.plugins.java.api.semantic.Type;
+import org.sonar.plugins.java.api.tree.ExpressionTree;
 import org.sonar.plugins.java.api.tree.MethodInvocationTree;
 import org.sonar.plugins.java.api.tree.Tree;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -44,6 +44,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class FlowComputation {
 
@@ -103,8 +104,8 @@ public class FlowComputation {
 
     Symbol newTrackSymbol = trackSymbol;
     if (currentNode.programPoint.syntaxTree() != null) {
-      newTrackSymbol = flowFromLearnedSymbols(currentNode, trackSymbol);
-      List<Constraint> learnedConstraints = flowFromLearnedConstraints(currentNode);
+      newTrackSymbol = addFlowFromLearnedSymbols(currentNode, trackSymbol);
+      List<Constraint> learnedConstraints = addFlowFromLearnedConstraints(currentNode);
       if (learnedConstraints.stream().anyMatch(terminateTraversal)) {
         return;
       }
@@ -114,7 +115,7 @@ public class FlowComputation {
     }
   }
 
-  private List<Constraint> flowFromLearnedConstraints(ExplodedGraph.Node currentNode) {
+  private List<Constraint> addFlowFromLearnedConstraints(ExplodedGraph.Node currentNode) {
     List<Constraint> learnedConstraints = currentNode.getLearnedConstraints().stream()
       .filter(lc -> lc.getSv().equals(symbolicValue))
       .map(ExplodedGraph.Node.LearnedConstraint::getConstraint)
@@ -123,58 +124,53 @@ public class FlowComputation {
     final ExplodedGraph.Node parent = currentNode.parent();
     learnedConstraints.stream()
       .filter(addToFlow.and(Objects::nonNull))
-      .forEach(lc -> {
-        flow.add(location(parent, learnedConstraintMessage(lc, currentNode, parent)));
-        if (parent.programPoint.syntaxTree().is(Tree.Kind.METHOD_INVOCATION)) {
-          MethodYield selectedMethodYields = currentNode.selectedMethodYield(parent);
-          if (selectedMethodYields != null) {
-            flow.addAll(flowFromMethodInvocation(selectedMethodYields, parent));
-          }
-        }
-      });
+      .flatMap(lc -> learnedConstraintFlow(lc, currentNode, parent))
+      .forEach(flow::add);
 
     return learnedConstraints;
   }
 
-  private List<JavaFileScannerContext.Location> flowFromMethodInvocation(MethodYield usedMethodYield, ExplodedGraph.Node parentNode) {
-    int argumentIndex = correspondingArgumentIndex(symbolicValue, parentNode);
-    return usedMethodYield.flow(argumentIndex);
-  }
-
-  private static int correspondingArgumentIndex(SymbolicValue candidate, ExplodedGraph.Node invocationNode) {
-    MethodInvocationTree mit = (MethodInvocationTree) invocationNode.programPoint.syntaxTree();
-    List<SymbolicValue> arguments = argumentsUsedForMethodInvocation(invocationNode, mit);
-    return arguments.indexOf(candidate);
-  }
-
-  private static List<SymbolicValue> argumentsUsedForMethodInvocation(ExplodedGraph.Node invocationNode, MethodInvocationTree mit) {
-    List<SymbolicValue> values = new ArrayList<>(invocationNode.programState.peekValues(mit.arguments().size()));
-    Collections.reverse(values);
-    return values;
-  }
-
-  private static String learnedConstraintMessage(Constraint lc, ExplodedGraph.Node currentNode, ExplodedGraph.Node parent) {
+  private static Stream<JavaFileScannerContext.Location> learnedConstraintFlow(Constraint learnedConstraint, ExplodedGraph.Node currentNode, ExplodedGraph.Node parent) {
     Tree nodeTree = parent.programPoint.syntaxTree();
-    String name = SyntaxTreeNameFinder.getName(nodeTree);
     if (nodeTree.is(Tree.Kind.METHOD_INVOCATION)) {
-      MethodYield selectedMethodYield = currentNode.selectedMethodYield(parent);
-      if (selectedMethodYield != null) {
-        Type exceptionType = selectedMethodYield.exceptionType();
-        // Only considering exceptional flows
-        if (exceptionType != null) {
-          return exceptionType.isUnknown() ? String.format("Exception thrown by '%s'", name) : String.format("Exception '%s' thrown by '%s'", exceptionType.name(), name);
-        }
-      }
-      return String.format("'%s' returns %s", name, lc.valueAsString());
+      return methodInvocationFlow(learnedConstraint, currentNode, parent);
     }
     if (nodeTree.is(Tree.Kind.NEW_CLASS)) {
-      return String.format("Constructor call creates '%s'", lc.valueAsString());
+      return Stream.of(location(parent, String.format("Constructor call creates '%s'", learnedConstraint.valueAsString())));
     }
-    return name == null ? lc.valueAsString() : String.format("Implies '%s' is %s", name, lc.valueAsString());
+    String name = SyntaxTreeNameFinder.getName(nodeTree);
+    String message = name == null ? learnedConstraint.valueAsString() : String.format("Implies '%s' is %s", name, learnedConstraint.valueAsString());
+    return Stream.of(location(parent, message));
+  }
+
+  private static Stream<JavaFileScannerContext.Location> methodInvocationFlow(Constraint learnedConstraint, ExplodedGraph.Node currentNode, ExplodedGraph.Node parent) {
+    MethodInvocationTree mit = (MethodInvocationTree) parent.programPoint.syntaxTree();
+    MethodYield selectedMethodYield = currentNode.selectedMethodYield(parent);
+    if (selectedMethodYield == null) {
+      return Stream.of(location(parent, String.format("'%s' invoked", mit.symbol().name())));
+    }
+    Stream.Builder<JavaFileScannerContext.Location> flow = Stream.builder();
+    if (selectedMethodYield.isExceptional()) {
+      Type exceptionType = selectedMethodYield.exceptionType();
+      String exception = exceptionType == null || exceptionType.isUnknown() ? "Exception" : exceptionType.name();
+      flow.add(location(parent, String.format("'%s' thrown by '%s'", exception, mit.symbol().name())));
+    }
+    if (selectedMethodYield.resultConstraint == learnedConstraint) {
+      flow.add(location(parent, String.format("'%s' returns %s", mit.symbol().name(), learnedConstraint.valueAsString())));
+    }
+    for (int i = 0; i < mit.arguments().size(); i++) {
+      ExpressionTree arg = mit.arguments().get(i);
+      Constraint constraint = selectedMethodYield.parametersConstraints[i];
+      if (constraint == learnedConstraint) {
+        flow.accept(new JavaFileScannerContext.Location(String.format("Implies arg #%d is %s", i+1, learnedConstraint.valueAsString()), arg));
+        selectedMethodYield.flow(i).forEach(flow::add);
+      }
+    }
+    return flow.build();
   }
 
   @Nullable
-  private Symbol flowFromLearnedSymbols(ExplodedGraph.Node currentNode, @Nullable Symbol trackSymbol) {
+  private Symbol addFlowFromLearnedSymbols(ExplodedGraph.Node currentNode, @Nullable Symbol trackSymbol) {
     ExplodedGraph.Node parent = currentNode.parent();
     if (trackSymbol == null || parent == null) {
       return null;

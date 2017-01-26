@@ -205,4 +205,8 @@ public class MethodYield {
   public Type exceptionType() {
     return exceptionType;
   }
+
+  boolean isExceptional() {
+    return exception;
+  }
 }
