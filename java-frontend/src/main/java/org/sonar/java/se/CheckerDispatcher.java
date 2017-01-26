@@ -26,6 +26,7 @@ import org.sonar.plugins.java.api.JavaFileScannerContext;
 import org.sonar.plugins.java.api.tree.MethodTree;
 import org.sonar.plugins.java.api.tree.Tree;
 
+import javax.annotation.Nullable;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -36,6 +37,8 @@ public class CheckerDispatcher implements CheckerContext {
   private int currentCheckerIndex = -1;
   private boolean transition = false;
   Tree syntaxNode;
+  // used by walker to store chosen yield when adding a transition from MIT
+  @Nullable MethodYield methodYield = null;
 
   public CheckerDispatcher(ExplodedGraphWalker explodedGraphWalker, List<SECheck> checks) {
     this.explodedGraphWalker = explodedGraphWalker;
@@ -94,6 +97,9 @@ public class CheckerDispatcher implements CheckerContext {
 
   private void executePost() {
     this.transition = false;
+    if (!syntaxNode.is(Tree.Kind.METHOD_INVOCATION)) {
+      methodYield = null;
+    }
     if (currentCheckerIndex < checks.size()) {
       explodedGraphWalker.programState = checks.get(currentCheckerIndex).checkPostStatement(this, syntaxNode);
     } else {
@@ -102,7 +108,7 @@ public class CheckerDispatcher implements CheckerContext {
       }
       explodedGraphWalker.enqueue(
         new ExplodedGraph.ProgramPoint(explodedGraphWalker.programPosition.block, explodedGraphWalker.programPosition.i + 1),
-        explodedGraphWalker.programState, explodedGraphWalker.node.exitPath);
+        explodedGraphWalker.programState, explodedGraphWalker.node.exitPath, methodYield);
       return;
     }
     if (!transition) {
