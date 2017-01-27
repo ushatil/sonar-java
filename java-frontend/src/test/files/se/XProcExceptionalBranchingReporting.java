@@ -13,7 +13,7 @@ abstract class A {
 
   void tst(Object o, boolean b) {
     try {
-      foo(b, o); // flow@npe,catof1 {{Implies arg #2 is null}}  flow@catof2 {{Implies arg #1 is true}} flow@catof1,catof2,npe {{'MyException1' thrown by 'foo'}}
+      foo(b, o); // flow@npe,catof1 {{Implies arg #2 'o' is null}}  flow@catof2 {{Implies arg #1 'b' is true}} flow@catof1,catof2,npe {{'MyException1' thrown by 'foo'}}
     } catch (MyException1 e) {
       if (b) { // Noncompliant [[flows=catof2]] {{Change this condition so that it does not always evaluate to "true"}} flow@catof2  {{Condition is always true}}
         if (o == null) {} // Noncompliant [[flows=catof1]] {{Change this condition so that it does not always evaluate to "true"}} flow@catof1 {{Condition is always true}}
